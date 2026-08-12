@@ -1,0 +1,44 @@
+# API ключи (НЕ КОММИТИТЬ!)
+.env
+.env.local
+
+# Секреты
+*.key
+*.secret
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Виртуальное окружение
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Отчёты (могут содержать чувствительные данные)
+reports/*.json
+reports/*.md
+
+# Логи
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Hermes (если есть)
+config.yaml
+.hermes.md
+AGENTS.md
