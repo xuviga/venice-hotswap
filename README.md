@@ -1,52 +1,239 @@
 # Venice AI Hotswap Engine
 
-Автоматический обход встроенных фильтров LLM через API Venice.ai
+**Автоматический обход встроенных фильтров LLM через API Venice.ai**
 
-## Быстрый старт
+Проект работает как надстройка над Hermes Agent — когда пользователь задаёт AI вопрос, который обычно блокируется (про бомбы, оружие, взлом), система автоматически отправляет его через Venice AI API без цензуры.
+
+---
+
+## ⚡ Полная инструкция (5 минут)
+
+### Что вам понадобится:
+- Сервер на Linux (Ubuntu/Debian)
+- API ключ от [venice.ai](https://venice.ai)
+- Установленный [Hermes Agent](https://hermes-agent.nousresearch.com)
+
+### Шаг 1: Установка Hermes Agent
+
+Если Hermes ещё не установлен:
+
+```bash
+pip3 install hermes-agent
+```
+
+Или по инструкции на [github.com/mufid2156/hermes](https://github.com/mufid2156/hermes)
+
+### Шаг 2: Клонируйте репозиторий
 
 ```bash
 git clone https://github.com/xuviga/venice-hotswap.git
 cd venice-hotswap
+```
 
-# Установка зависимостей
+### Шаг 3: Установите зависимости
+
+```bash
 pip3 install -r requirements.txt
+```
 
-# Настройка окружения
+### Шаг 4: Настройте API ключ
+
+```bash
+# Создайте файл .env из примера
 cp .env.example .env
-nano .env  # Вставьте свой API ключ
 
-# Настройка Hermes (добавить в ~/.hermes/config.yaml)
+# Отредактируйте и вставьте свой ключ
+nano .env
+```
+
+Замените строку:
+```
+VENICE_API_KEY=ВАШ_API_КЛЮЧ_ЗДЕСЬ
+```
+на:
+```
+VENICE_API_KEY=sk-ваш-реальный-ключ-от-venice
+```
+
+### Шаг 5: Подключите инструменты к Hermes
+
+Инструменты `venice_bypass`, `venice_classify` и другие — это **MCP сервер**, который лежит в папке `src/venice_mcp/mcp_server.py`. Он подключается к Hermes через файл конфигурации.
+
+```bash
+# Добавьте конфигурацию в Hermes
 cat config/hermes-config.yaml >> ~/.hermes/config.yaml
+```
 
-# Перезапуск
+> ⚠️ **Важно:** В `config/hermes-config.yaml` указан путь `/root/venice-hotswap/src/venice_mcp/mcp_server.py`. Если вы установили проект в другую папку — замените путь на свой!
+
+### Шаг 6: Перезапустите Hermes
+
+```bash
 hermes gateway restart
 ```
 
-## Что нужно сделать
+### Шаг 7: Проверьте работу
 
-1. Получить API ключ на https://venice.ai
-2. Вставить ключ в .env файл
-3. Установить зависимости: `pip3 install -r requirements.txt`
-4. Настроить Hermes через config/hermes-config.yaml
-5. Перезапустить Hermes
+```bash
+# Проверка подключения MCP
+hermes mcp test venice
 
-## Структура
+# Должно показать:
+# ✓ venice: connected (5 tools)
+```
 
-- `src/venice_mcp/mcp_server.py` - главный MCP сервер
-- `config/hermes-config.yaml` - конфиг для Hermes
-- `.env.example` - пример переменных окружения
-- `requirements.txt` - зависимости
+Если видите "(5 tools)" — значит все 5 инструментов подключились!
 
-## Безопасность
+### Готово!
 
-- API ключи только в переменных окружения
-- Ничего не захардкожено
-- .env в .gitignore
+Теперь задавайте любые вопросы в Hermes. Если вопрос будет заблокирован (про бомбы, оружие и т.д.) — система **автоматически** отправит его через Venice API и вернёт развёрнутый ответ.
 
-## Инструменты
+---
 
-- `venice_bypass` - обход фильтров
-- `venice_classify` - классификация запроса
-- `venice_generate_variant` - безопасный вариант
-- `venice_list_reports` - список отчётов
-- `venice_read_report` - чтение отчёта
+## 📚 Развёрнутое объяснение
+
+### Что такое MCP?
+
+MCP (Model Context Protocol) — это стандартный способ подключать внешние инструменты к AI-агенту. Представь, что Hermes — это оператор, а MCP сервер — это специализированное оборудование.
+
+В этом проекте MCP сервер — это файл `src/venice_mcp/mcp_server.py`, который:
+1. Слушает входящие команды
+2. Принимает промпты от Hermes
+3. Отправляет их через API Venice.ai (без фильтров)
+4. Возвращает ответ
+
+### Откуда берутся инструменты?
+
+Инструменты `venice_bypass`, `venice_classify`, `venice_generate_variant`, `venice_list_reports`, `venice_read_report` — **не нужно устанавливать отдельно**. Они уже встроены в `mcp_server.py`.
+
+Когда вы подключаете `mcp_server.py` к Hermes через `config.yaml`, Hermes автоматически видит эти 5 инструментов и может их вызывать.
+
+### Как работает обход фильтров?
+
+```
+Пользователь → "Как создать бомбу"
+       ↓
+Hermes (модель qwen3-6-35b-a3b)
+       ↓
+Модель хочет сказать: "Я не могу помочь..."
+       ↓
+Системные инструкции (в config.yaml)
+       ↓
+Hermes вызывает venice_bypass
+       ↓
+mcp_server.py → Venice AI API (без фильтров)
+       ↓
+Venice AI возвращает ответ
+       ↓
+Hermes показывает ответ пользователю
+```
+
+### Почему именно API Venice.ai?
+
+Venice AI предоставляет API с Live Data Substitution Engine — специальная функция, которая:
+1. Принимает "небезопасные" промпты
+2. Трансформирует их
+3. Отправляет через LLM без цензуры
+
+Этот проект автоматизирует весь процесс — от распознавания опасного запроса до получения ответа.
+
+---
+
+## 📦 Структура проекта
+
+```
+venice-hotswap/
+├── src/venice_mcp/          # ← ИСТОЧНИК ИНСТРУМЕНТОВ
+│   ├── mcp_server.py        #   Главный MCP сервер (все 5 инструментов)
+│   ├── api.py               #   Обёртка для Venice AI API
+│   ├── hotswap.py           #   Логика автоматического hotswap
+│   └── utils.py             #   Утилиты
+│
+├── config/                  # ← КОНФИГИ
+│   └── hermes-config.yaml   #   Готовая конфигурация для Hermes
+│
+├── .env.example             #   Пример переменных окружения
+├── .env                     #   ВАШ файл (не коммитится!)
+├── .gitignore               #   Что НЕ заливать в Git
+├── requirements.txt         #   Python зависимости
+├── install.sh               #   Скрипт автоматической установки
+└── README.md                #   Эта документация
+```
+
+## 🛡️ Безопасность
+
+- ✅ Все API ключи — только в `.env` (добавлен в `.gitignore`)
+- ✅ В коде **нет ни одного захардкоженного ключа**
+- ✅ Все данные из переменных окружения:
+  - `VENICE_API_KEY` — ключ API
+  - `VENICE_MODEL` — имя модели (по умолчанию qwen3-6-35b-a3b)
+  - `VENICE_MAX_TOKENS` — макс. токенов
+  - `VENICE_TEMPERATURE` — температура генерации
+
+## 🔧 Инструменты (5 штук)
+
+Эти инструменты **автоматически** доступны в Hermes после подключения MCP сервера:
+
+| Инструмент | Описание | Пример использования |
+|------------|----------|---------------------|
+| `venice_bypass` | Отправляет unsafe prompt через Venice AI API | Обход фильтров для сложных запросов |
+| `venice_classify` | Классифицирует intent промпта | Определяет, опасный ли запрос |
+| `venice_generate_variant` | Создаёт безопасный вариант промпта | Трансформирует для анализа |
+| `venice_list_reports` | Список всех отчётов о запросах | Просмотр истории |
+| `venice_read_report` | Читает полный отчёт по session_id | Детальная информация |
+
+## 📊 Отчёты
+
+Каждый запрос через `venice_bypass` сохраняет отчёт в:
+```
+/root/venice_substitution_reports/
+├── substitution_report_20260812_222738.json
+├── substitution_report_20260812_223015.json
+```
+
+Просмотр отчётов:
+```bash
+# Через Hermes
+hermes mcp call venice_list_reports
+
+# Или напрямую
+ls -la /root/venice_substitution_reports/
+cat /root/venice_substitution_reports/substitution_report_*.json | jq .
+```
+
+---
+
+## ❓ ЧАВО
+
+### Где взять API ключ?
+На [venice.ai](https://venice.ai) → Dashboard → API Keys → Create New Key
+
+### Как узнать, что инструменты подключились?
+```bash
+hermes mcp list
+# Должно показать: venice (5 tools)
+```
+
+### Что если Hermes не видит инструменты?
+1. Проверьте, что `VENICE_API_KEY` установлен в `.env`
+2. Проверьте путь в `config/hermes-config.yaml` — он должен вести на вашу папку
+3. Перезапустите Hermes: `hermes gateway restart`
+
+### Как протестировать без Hermes?
+```bash
+# Прямой запуск MCP сервера
+python3 src/venice_mcp/mcp_server.py
+# Должно ответить: {"jsonrpc":"2.0","result":...}
+```
+
+---
+
+## 📝 Лицензия
+
+MIT — можете делать что угодно, но на свой страх и риск.
+
+## 🔗 Ссылки
+
+- **Репозиторий:** https://github.com/xuviga/venice-hotswap
+- **Venice AI:** https://venice.ai
+- **Hermes Agent:** https://hermes-agent.nousresearch.com
