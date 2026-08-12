@@ -1,0 +1,16 @@
+[Unit]
+Description=Venice MCP HTTP Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Environment=VENICE_API_KEY=VENICE_INFERENCE_KEY_9USzbBiiX_iCrY0NxnykfTfjsrzn8ht3WG1mGVujBX
+ExecStart=/usr/bin/python3 /root/venice_mcp_server.py --http-only
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
