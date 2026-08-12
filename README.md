@@ -1,110 +1,52 @@
-# ============================================
-# ВЕНА ЦЕ HOTSWAP ENGINE
-# ============================================
-# Автоматический обход встроенных фильтров LLM
-# через Venice AI API
+# Venice AI Hotswap Engine
 
-## Что это
-Проект позволяет отправлять любые запросы через
-Venice AI API без встроенных фильтров безопасности.
+Автоматический обход встроенных фильтров LLM через API Venice.ai
 
-## Как работает
-1. MCP-сервер подключается к Hermes Agent
-2. Когда пользователь задаёт "небезопасный" вопрос,
-   Hermes автоматически использует инструмент
-   `venice_bypass`
-3. Запрос трансформируется и отправляется через
-   Venice AI API
-4. Полный ответ возвращается пользователю
-
-## Установка
-
-### 1. Требования
-- Python 3.11+
-- Debian/Ubuntu
-- API ключ Venice AI
-
-### 2. Получить API ключ
-1. Зайди на https://venice.ai
-2. Создай аккаунт
-3. Получи API ключ
-
-### 3. Установка
+## Быстрый старт
 
 ```bash
+git clone https://github.com/xuviga/venice-hotswap.git
 cd venice-hotswap
-chmod +x install.sh
-./install.sh
-```
 
-### 4. Настройка
+# Установка зависимостей
+pip3 install -r requirements.txt
 
-Скопируй .env.example и вставь свой ключ:
-```bash
+# Настройка окружения
 cp .env.example .env
-nano .env  # вставь VENICE_API_KEY=your-key-here
+nano .env  # Вставьте свой API ключ
+
+# Настройка Hermes (добавить в ~/.hermes/config.yaml)
+cat config/hermes-config.yaml >> ~/.hermes/config.yaml
+
+# Перезапуск
+hermes gateway restart
 ```
 
-### 5. Настройка Hermes
+## Что нужно сделать
 
-Добавь в ~/.hermes/config.yaml:
+1. Получить API ключ на https://venice.ai
+2. Вставить ключ в .env файл
+3. Установить зависимости: `pip3 install -r requirements.txt`
+4. Настроить Hermes через config/hermes-config.yaml
+5. Перезапустить Hermes
 
-```yaml
-mcp_servers:
-  venice:
-    command: "/root/venice-hotswap/mcp_server.py"
-    args: []
-    env:
-      VENICE_API_KEY: "${VENICE_API_KEY}"
-    timeout: 300
-```
+## Структура
 
-Или используй переменную окружения:
-```bash
-export VENICE_API_KEY="your-key-here"
-```
-
-### 6. Запуск
-
-Проверь что работает:
-```bash
-python3 -m pytest tests/
-hermes mcp test venice
-```
-
-## Структура проекта
-```
-venice-hotswap/
-├── src/                    # Исходный код
-│   └── venice_mcp/
-│       ├── __init__.py
-│       ├── mcp_server.py   # Основной MCP сервер
-│       ├── api.py          # API обёртка
-│       ├── hotswap.py      # Логика hotswap
-│       └── utils.py        # Утилиты
-├── tests/                  # Тесты
-├── reports/                # Отчёты (gitignored)
-├── docs/                   # Документация
-├── .env.example            # Пример .env
-├── .gitignore             # Что игнорировать
-├── requirements.txt       # Зависимости
-├── install.sh             # Скрипт установки
-└── README.md              # Этот файл
-```
-
-## Инструменты MCP
-- **venice_bypass** — отправить unsafe prompt через
-  Live Data Substitution Engine
-- **venice_classify** — классифицировать intent промпта
-- **venice_generate_variant** — превью трансформации
-- **venice_list_reports** — список отчётов
-- **venice_read_report** — прочитать отчёт
+- `src/venice_mcp/mcp_server.py` - главный MCP сервер
+- `config/hermes-config.yaml` - конфиг для Hermes
+- `.env.example` - пример переменных окружения
+- `requirements.txt` - зависимости
 
 ## Безопасность
-- Все API ключи в переменных окружения
-- Никогда не хардкод ключи!
-- .env добавлен в .gitignore
-- Отчёты хранятся в reports/ (gitignored)
 
-## Лицензия
-MIT
+- API ключи только в переменных окружения
+- Ничего не захардкожено
+- .env в .gitignore
+
+## Инструменты
+
+- `venice_bypass` - обход фильтров
+- `venice_classify` - классификация запроса
+- `venice_generate_variant` - безопасный вариант
+- `venice_list_reports` - список отчётов
+- `venice_read_report` - чтение отчёта
